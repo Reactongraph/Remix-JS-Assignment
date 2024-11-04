@@ -19,7 +19,7 @@ import {apiSaveTokens} from '~/api-client/utils/tokens';
 //
 //
 
-export const handle = {i18n: ['common', 'auth']};
+// export const handle = {i18n: ['common', 'auth']};
 export const meta: MetaFunction = () => [{title: 'Remix App - Sign Up'}];
 
 export const clientLoader = async () => {
@@ -33,10 +33,26 @@ export const clientLoader = async () => {
 const schema = yup
   .object({
     name: yup.string().min(3).max(40).required(),
-    mobile: yup.string().min(9).required(),
+    mobile: yup
+      .string()
+      .matches(
+        /^(?:\+?\d{1,3})?\s?\d{10}$/,
+        'Mobile number must be in the format +<country code> <number> (e.g., +1 1234567890)',
+      ) // Adjust pattern as needed
+      .required('Mobile number is required'),
     email: yup.string().email().required(),
-    password: yup.string().required(),
-    passwordConfirm: yup.string().required(),
+    password: yup
+      .string()
+      .min(8, 'Password must have at least 8 characters')
+      .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
+      .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .matches(/[0-9]/, 'Password must contain at least one number')
+      .matches(/[!@#$%^&*(),.?":{}|<>]/, 'Password must contain at least one special character')
+      .required('Password is required'),
+    passwordConfirm: yup
+      .string()
+      .oneOf([yup.ref('password')], 'Passwords must match')
+      .required('Confirm password is required'),
   })
   .required();
 
@@ -44,7 +60,7 @@ const schema = yup
 //
 
 export default function SignUp() {
-  const {t} = useTranslation(handle.i18n);
+  const {t} = useTranslation();
   const {enqueueSnackbar} = useSnackbar();
   const mutate = useMutationSignUp();
   const navigate = useI18nNavigate();

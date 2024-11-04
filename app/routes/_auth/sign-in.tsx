@@ -17,7 +17,7 @@ import {apiSaveTokens} from '~/api-client/utils/tokens';
 //
 //
 
-export const handle = {i18n: ['common', 'auth']};
+// export const handle = {i18n: ['common', 'auth']};
 export const meta: MetaFunction = () => [{title: 'Remix App - Sign In'}];
 
 export const clientLoader = async () => {
@@ -37,7 +37,7 @@ const schema = yup
 //
 
 export default function SignIn() {
-  const {t} = useTranslation(handle.i18n);
+  const {t} = useTranslation();
   const {enqueueSnackbar} = useSnackbar();
   const mutate = useMutationSignIn();
   const navigate = useNavigate();

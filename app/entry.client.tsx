@@ -17,6 +17,7 @@ import i18n from '~/localization/i18n';
 
 //
 //
+console.log('main file called 1');
 
 const hydrate = async () => {
   if (!i18next.isInitialized)

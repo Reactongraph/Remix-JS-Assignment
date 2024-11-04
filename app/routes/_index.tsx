@@ -1,5 +1,5 @@
 import {useTranslation} from 'react-i18next';
-import type {MetaFunction} from '@remix-run/node';
+import type {MetaFunction, LoaderFunction} from '@remix-run/node';
 
 import {Grid2, Typography} from '@mui/material';
 
@@ -7,19 +7,27 @@ import {useQueryProfile} from '~/services/auth';
 
 import {AppLink} from '~/global/components/app-link';
 
-import {ApiResponse, ApiUser} from '~/api-client/types';
-
-//
-//
-
+// Meta function to set the page title
 export const meta: MetaFunction = () => [{title: 'Remix App'}];
 
-//
-//
+// Loader function to return an empty string
+export const loader: LoaderFunction = async () => {
+  // You can include any data fetching logic here if needed
+  return ''; // Return an empty string or any required data
+};
 
+console.log('main file called');
+
+// Main component
 export default function Index() {
+  console.log('main file called inside Index');
+
   const {t} = useTranslation();
+  console.log('translation test for hello:', t('hello')); // Log the translation for 'hello'
+
   const {data} = useQueryProfile({enabled: !!window.localStorage.getItem('_at')});
+  console.log('data:', data); // Log data directly
+  console.log('data as JSON:', JSON.stringify(data, null, 2)); // Log data as JSON string
 
   return (
     <Grid2
@@ -34,9 +42,7 @@ export default function Index() {
         {t('hello')}
       </Typography>
 
-      <AppLink
-        to={(data as unknown as ApiResponse<ApiUser>)?.result?.userId ? '/products' : '/sign-in'}
-      >
+      <AppLink to="/sign-in">
         <Typography variant="h5">Get Started</Typography>
       </AppLink>
     </Grid2>

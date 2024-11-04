@@ -17,7 +17,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 
 import theme from '~/global/components/mui/theme';
 
-import i18n from '~/localization/i18n'; // your i18n configuration file
+import i18n from '~/localization/i18n';
 import i18next from '~/localization/i18n.server';
 
 const ABORT_DELAY = 5000;
@@ -33,13 +33,13 @@ const handleRequest = async (
   const ns = i18next.getRouteNamespaces(remixContext);
 
   await instance
-    .use(initReactI18next) // Tell our instance to use react-i18next
-    .use(Backend) // Setup our backend
+    .use(initReactI18next)
+    .use(Backend)
     .init({
-      ...i18n, // spread the configuration
-      lng, // The locale we detected above
-      ns, // The namespaces the routes about to render wants to use
-      backend: {loadPath: resolve('./public/locales/{{lng}}/{{ns}}.json')},
+      ...i18n,
+      lng,
+      ns,
+      backend: {loadPath: '/locales/{{lng}}/{{ns}}.json'},
     });
 
   return isbot(request.headers.get('user-agent'))
@@ -47,7 +47,18 @@ const handleRequest = async (
     : handleBrowserRequest(request, responseStatusCode, responseHeaders, remixContext, instance);
 };
 
-export default handleRequest;
+const handleRender = (
+  request: Request,
+  responseHeaders: Headers,
+  remixContext: EntryContext,
+  i18nInstance: I18n,
+) => {
+  const emotionCache = createEmotionCache({key: 'css'});
+  const emotionServer = createEmotionServer(emotionCache);
+  const reactBody = new PassThrough();
+
+  return {emotionCache, emotionServer, reactBody};
+};
 
 const handleBotRequest = (
   request: Request,
@@ -58,7 +69,12 @@ const handleBotRequest = (
 ) =>
   new Promise((resolve, reject) => {
     let didError = false;
-    const emotionCache = createEmotionCache({key: 'css'});
+    const {emotionCache, emotionServer, reactBody} = handleRender(
+      request,
+      responseHeaders,
+      remixContext,
+      i18nInstance,
+    );
 
     const {pipe, abort} = renderToPipeableStream(
       <I18nextProvider i18n={i18nInstance}>
@@ -71,12 +87,8 @@ const handleBotRequest = (
       </I18nextProvider>,
       {
         onAllReady: () => {
-          const reactBody = new PassThrough();
-          const emotionServer = createEmotionServer(emotionCache);
-
           const bodyWithStyles = emotionServer.renderStylesToNodeStream();
           reactBody.pipe(bodyWithStyles);
-
           responseHeaders.set('Content-Type', 'text/html');
 
           resolve(
@@ -89,12 +101,12 @@ const handleBotRequest = (
           pipe(reactBody);
         },
         onShellError: (error: unknown) => {
+          console.error('Shell Error:', error);
           reject(error);
         },
         onError: (error: unknown) => {
           didError = true;
-
-          console.error(error);
+          console.error('Render Error:', error);
         },
       },
     );
@@ -111,7 +123,12 @@ const handleBrowserRequest = (
 ) =>
   new Promise((resolve, reject) => {
     let didError = false;
-    const emotionCache = createEmotionCache({key: 'css'});
+    const {emotionCache, emotionServer, reactBody} = handleRender(
+      request,
+      responseHeaders,
+      remixContext,
+      i18nInstance,
+    );
 
     const {pipe, abort} = renderToPipeableStream(
       <I18nextProvider i18n={i18nInstance}>
@@ -123,13 +140,9 @@ const handleBrowserRequest = (
         </EmotionCacheProvider>
       </I18nextProvider>,
       {
-        onShellReady: () => {
-          const reactBody = new PassThrough();
-          const emotionServer = createEmotionServer(emotionCache);
-
+        onAllReady: () => {
           const bodyWithStyles = emotionServer.renderStylesToNodeStream();
           reactBody.pipe(bodyWithStyles);
-
           responseHeaders.set('Content-Type', 'text/html');
 
           resolve(
@@ -142,15 +155,17 @@ const handleBrowserRequest = (
           pipe(reactBody);
         },
         onShellError: (error: unknown) => {
+          console.error('Shell Error:', error);
           reject(error);
         },
         onError: (error: unknown) => {
           didError = true;
-
-          console.error(error);
+          console.error('Render Error:', error);
         },
       },
     );
 
     setTimeout(abort, ABORT_DELAY);
   });
+
+export default handleRequest;

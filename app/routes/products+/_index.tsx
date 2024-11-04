@@ -1,18 +1,17 @@
 import type {MetaFunction} from '@remix-run/node';
-import {redirect} from '@remix-run/react';
+import {redirect, useNavigate} from '@remix-run/react';
 import {useTranslation} from 'react-i18next';
+import {enqueueSnackbar} from 'notistack';
 
-import {Stack} from '@mui/material';
+import {Stack, useMediaQuery, Box, Typography} from '@mui/material';
 
-import {useQueryProductsList} from '~/services/products';
+import {useMutationProductsDelete, useQueryProductsList} from '~/services/products';
 
 import {SkeletonOnLoading} from '~/global/components/skeleton-on-loading';
 import {AppButton} from '~/global/components/app-button';
 
 import {ProductsTable} from './components/table';
-
-//
-//
+import ProductCard from './components/productCard';
 
 export const handle = {i18n: ['common', 'products']};
 export const meta: MetaFunction = () => [{title: 'Remix App - Products'}];
@@ -23,15 +22,33 @@ export const clientLoader = async () => {
   return null;
 };
 
-//
-//
+// Card component for mobile view
 
 export default function Products() {
   const {t} = useTranslation(['common']);
   const {data, isLoading} = useQueryProductsList();
+  const navigate = useNavigate();
+  // Check if the screen width is smaller than the breakpoint for mobile (600px)
+  const isMobile = useMediaQuery('(max-width:600px)');
+  const deleteItem = useMutationProductsDelete();
 
-  //
-  //
+  function handleEdit(productId: string) {
+    navigate(`/products/${productId}`);
+  }
+
+  function handleDelete(productId: string) {
+    deleteItem.mutate(
+      {id: productId},
+      {
+        onSuccess: async result => {
+          result?.meta?.message && enqueueSnackbar(result?.meta?.message, {variant: 'success'});
+        },
+        onError: err => {
+          enqueueSnackbar(err?.message || 'unknown error', {variant: 'error'});
+        },
+      },
+    );
+  }
 
   return (
     <>
@@ -43,7 +60,28 @@ export default function Products() {
         </SkeletonOnLoading>
       </Stack>
 
-      <ProductsTable data={data?.result} isLoading={isLoading} />
+      {isMobile ? (
+        <Box display="flex" flexDirection="column" gap={2}>
+          {data?.result?.length ? (
+            data.result?.map(product => (
+              <ProductCard
+                product={{
+                  ...product,
+                  priceSale: product.priceSale ?? 0,
+                  image: product.image ?? null,
+                }}
+                key={product?.productId}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+              />
+            ))
+          ) : (
+            <Typography>No products available</Typography>
+          )}
+        </Box>
+      ) : (
+        <ProductsTable data={data?.result} isLoading={isLoading} />
+      )}
     </>
   );
 }
